@@ -122,7 +122,7 @@ func (azureStorage *tAzureFileStorage) DeleteFile(fileName string) error {
 	return delErr
 }
 
-func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstraction.WalkFunc) {
+func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstraction.WalkFunc) error {
 	azureStorage.LogIn()
 	defer azureStorage.LogOut()
 

@@ -17,5 +17,5 @@ type IFileStorage interface {
 	FileSize(fileName string) (int64, error)
 	DeleteDirectory(directory string) error
 	DeleteFile(fileName string) error
-	Walk(directory string, walk WalkFunc)
+	Walk(directory string, walk WalkFunc) error
 }
