@@ -92,6 +92,7 @@ func (azureStorage *tAzureFileStorage) LogIn() error {
 
 func (azureStorage *tAzureFileStorage) DeleteDirectory(directory string) error {
 	azureStorage.LogIn()
+	defer azureStorage.LogOut()
 
 	_, containerURL := azureStorage.getContainerURL()
 
@@ -110,10 +111,22 @@ func (azureStorage *tAzureFileStorage) DeleteDirectory(directory string) error {
 	return err
 }
 
+func (azureStorage *tAzureFileStorage) DeleteFile(fileName string) error {
+	azureStorage.LogIn()
+	defer azureStorage.LogOut()
+
+	_, blobURL := azureStorage.getBlobURL(fileName)
+	ctx := context.Background()
+	_, delErr := blobURL.Delete(ctx, azblob.DeleteSnapshotsOptionInclude, azblob.BlobAccessConditions{})
+
+	return delErr
+}
+
 func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstraction.WalkFunc) {
 	azureStorage.LogIn()
-	_, containerURL := azureStorage.getContainerURL()
+	defer azureStorage.LogOut()
 
+	_, containerURL := azureStorage.getContainerURL()
 	ctx := context.Background()
 
 	var err error = nil
@@ -151,6 +164,7 @@ func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstra
 
 func (azureStorage *tAzureFileStorage) DownloadFile(fileName string) (io.ReadCloser, error) {
 	azureStorage.LogIn()
+	defer azureStorage.LogOut()
 
 	_, blobURL := azureStorage.getBlobURL(fileName)
 
@@ -183,6 +197,9 @@ func (azureStorage *tAzureFileStorage) getBlobURL(fileName string) (pipeline.Pip
 }
 
 func (azureStorage *tAzureFileStorage) FileSize(fileName string) (int64, error) {
+	azureStorage.LogIn()
+	defer azureStorage.LogOut()
+
 	_, blobURL := azureStorage.getBlobURL(fileName)
 	ctx := context.Background()
 

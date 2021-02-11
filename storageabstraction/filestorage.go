@@ -16,5 +16,6 @@ type IFileStorage interface {
 	DownloadFile(fileName string) (io.ReadCloser, error)
 	FileSize(fileName string) (int64, error)
 	DeleteDirectory(directory string) error
+	DeleteFile(fileName string) error
 	Walk(directory string, walk WalkFunc)
 }
