@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/2flow/gokies/storageabstraction"
@@ -96,32 +97,56 @@ func (azureStorage *tAzureFileStorage) DeleteDirectory(directory string) error {
 
 	ctx := context.Background()
 
+	err := azureStorage.Walk(directory, func(path string, info storageabstraction.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		blobURL := containerURL.NewBlockBlobURL(blobInfo.Name)
+		_, delErr := blobURL.Delete(ctx, azblob.DeleteSnapshotsOptionInclude, azblob.BlobAccessConditions{})
+
+		return delErr
+	})
+
+	return err
+}
+
+func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstraction.WalkFunc) {
+	azureStorage.LogIn()
+	_, containerURL := azureStorage.getContainerURL()
+
+	ctx := context.Background()
+
+	var err error = nil
+
 	for marker := (azblob.Marker{}); marker.NotDone(); {
 		// Get a result segment starting with the blob indicated by the current Marker.
 		listBlob, err := containerURL.ListBlobsFlatSegment(ctx, marker, azblob.ListBlobsSegmentOptions{Prefix: directory})
 
 		if err != nil {
 			log.Printf("Unable to list content: %s\r\n", err.Error())
-			return err
+			err = walk("", storageabstraction.FileInfo{Size: 0, IsDir: false}, err)
+		} else {
+			// ListBlobs returns the start of the next segment; you MUST use this to get
+			// the next segment (after processing the current result segment).
+			marker = listBlob.NextMarker
+
+			// Process the blobs returned in this result segment (if the segment is empty, the loop body won't execute)
+			for _, blobInfo := range listBlob.Segment.BlobItems {
+				err = walk(strings.TrimPrefix(blobInfo.Name, directory), storageabstraction.FileInfo{Size: *blobInfo.Properties.ContentLength, IsDir: false}, nil)
+
+				if err != nil {
+					break
+				}
+			}
 		}
 
-		// ListBlobs returns the start of the next segment; you MUST use this to get
-		// the next segment (after processing the current result segment).
-		marker = listBlob.NextMarker
-
-		// Process the blobs returned in this result segment (if the segment is empty, the loop body won't execute)
-		for _, blobInfo := range listBlob.Segment.BlobItems {
-			blobURL := containerURL.NewBlockBlobURL(blobInfo.Name)
-			_, delErr := blobURL.Delete(ctx, azblob.DeleteSnapshotsOptionInclude, azblob.BlobAccessConditions{})
-
-			if delErr != nil {
-				log.Printf("Unable to delete blob: %s\r\n", delErr.Error())
-			}
+		if err != nil {
+			break
 		}
 
 	}
 
-	return nil
+	return err
 }
 
 func (azureStorage *tAzureFileStorage) DownloadFile(fileName string) (io.ReadCloser, error) {
