@@ -4,11 +4,12 @@ package filestorage
 import (
 	"context"
 	"fmt"
-	"gokies/storageabstraction"
 	"io"
 	"log"
 	"net/url"
 	"sync"
+
+	"github.com/2flow/gokies/storageabstraction"
 
 	"github.com/Azure/azure-pipeline-go/pipeline"
 	"github.com/Azure/azure-storage-blob-go/azblob"

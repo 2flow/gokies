@@ -1,4 +1,4 @@
-module gokies
+module github.com/2flow/gokies
 
 go 1.14
 
