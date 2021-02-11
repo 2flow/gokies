@@ -1,4 +1,4 @@
-package filestorage
+package azureblobs
 
 // https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-go?tabs=windows
 import (
