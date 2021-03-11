@@ -3,6 +3,7 @@ package azureblobs
 // https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-go?tabs=windows
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -44,11 +45,6 @@ func (azureReader *tAzureReadCloser) Close() error {
 	azureReader.fileStorage.LogOut()
 	return azureReader.readCloser.Close()
 }
-
-// File structure
-// im-projects
-// |-- Project name
-// |  |--Version
 
 // NewAzureStorage instantiates a new azur storage connector
 func NewAzureStorage(accountName string, accountKey string, containerName string, storageURL string) storageabstraction.IFileStorage {
@@ -164,7 +160,7 @@ func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstra
 
 func (azureStorage *tAzureFileStorage) DownloadFile(fileName string) (io.ReadCloser, error) {
 	azureStorage.LogIn()
-	defer azureStorage.LogOut()
+	// do not logout at the end of this function, the logout is done when the reader is closed
 
 	_, blobURL := azureStorage.getBlobURL(fileName)
 
@@ -248,6 +244,9 @@ func (azureStorage *tAzureFileStorage) LogOut() error {
 	azureStorage.loginCount--
 	if azureStorage.loginCount == 0 {
 		azureStorage.credential = nil
+	} else if azureStorage.loginCount < 0 {
+		azureStorage.loginCount = 0
+		return errors.New("there was an unexpectd logout somewhere. ")
 	}
 
 	return nil
