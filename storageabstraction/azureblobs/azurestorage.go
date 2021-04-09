@@ -98,7 +98,7 @@ func (azureStorage *tAzureFileStorage) DeleteDirectory(directory string) error {
 		if err != nil {
 			return err
 		}
-		blobURL := containerURL.NewBlockBlobURL(path)
+		blobURL := containerURL.NewBlockBlobURL(directory + path)
 		_, delErr := blobURL.Delete(ctx, azblob.DeleteSnapshotsOptionInclude, azblob.BlobAccessConditions{})
 
 		return delErr
