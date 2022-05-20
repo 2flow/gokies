@@ -63,7 +63,6 @@ func NewAzureStorage(accountName string, accountKey string, containerName string
 	return storage
 }
 
-// Login to the azure storage system, returns nil if success
 func (azureStorage *tAzureFileStorage) LogIn() error {
 	azureStorage.loginLock.Lock()
 	defer azureStorage.loginLock.Unlock()
