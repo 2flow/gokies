@@ -16,7 +16,7 @@ type HTTPServer struct {
 	logger      log.Logger
 }
 
-func newHTTPServer(logger log.Logger) *HTTPServer {
+func NewHTTPServer(logger log.Logger) *HTTPServer {
 	server := &HTTPServer{nil, nil, logger}
 	return server
 }
@@ -39,7 +39,7 @@ func (server *HTTPServer) configureAutoCert(domainURL string) {
 	}
 }
 
-func (server *HTTPServer) setRoutes(routes http.Handler) {
+func (server *HTTPServer) SetRoutes(routes http.Handler) {
 	server.routes = routes
 }
 
@@ -51,7 +51,7 @@ func (server *HTTPServer) createHTTPServer() *http.Server {
 	}
 }
 
-func (server *HTTPServer) startHTTPSServer() {
+func (server *HTTPServer) StartHTTPSServer() {
 	httpServer := server.createHTTPServer()
 	{
 		httpServer.Handler = server.routes
@@ -71,7 +71,7 @@ func (server *HTTPServer) log(message string) {
 	_ = server.logger.Log("[HTTPS Server]", message)
 }
 
-func (server *HTTPServer) startHTTPServer() {
+func (server *HTTPServer) StartHTTPServer() {
 	httpServer := server.createHTTPServer()
 	{
 		if server.certManager != nil {

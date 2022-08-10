@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/2flow/gokies/storageabstraction"
 
@@ -222,6 +223,9 @@ func (azureStorage *tAzureFileStorage) UploadFile(fileName string, fileSize int6
 	_, blobURL := azureStorage.getBlobURL(fileName)
 
 	ctx := context.Background()
+	immutabilityOptions := azblob.NewImmutabilityPolicyOptions(&time.Time{}, azblob.BlobImmutabilityPolicyModeMutable, new(bool))
+	*immutabilityOptions.LegalHold = false
+	*immutabilityOptions.ImmutabilityPolicyUntilDate = time.Now()
 	// Wrap the request body in a RequestBodyProgress and pass a callback function for progress reporting.
 	_, err := blobURL.Upload(ctx, reader,
 		azblob.BlobHTTPHeaders{
@@ -229,7 +233,7 @@ func (azureStorage *tAzureFileStorage) UploadFile(fileName string, fileSize int6
 			ContentDisposition: "attachment",
 		}, azblob.Metadata{
 			"createdby": "",
-		}, azblob.BlobAccessConditions{}, azblob.AccessTierHot, azblob.BlobTagsMap{}, azblob.ClientProvidedKeyOptions{})
+		}, azblob.BlobAccessConditions{}, azblob.AccessTierHot, azblob.BlobTagsMap{}, azblob.ClientProvidedKeyOptions{}, immutabilityOptions)
 	if err != nil {
 		log.Fatal(err)
 	}

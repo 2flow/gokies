@@ -3,7 +3,10 @@ package httputils
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"strings"
 )
 
 // TResponse is the default response to the client
@@ -53,4 +56,43 @@ func GetErrorResponse(msg string, code int, args ...interface{}) *TResponse {
 	resp.Content = nil
 
 	return resp
+}
+
+func HTTPRoutingErrorHandler(logMsg string, err error) *TResponse {
+	log.Printf("%s: %s", logMsg, err.Error())
+
+	return GetErrorResponse(logMsg, 1)
+}
+
+// SetContentType Setst the content type to the responsewriter by the filename or the content
+func SetContentType(w http.ResponseWriter, file io.Reader, fileName string) {
+	SetContentTypeWithName(w, fileName)
+}
+
+func SetContentTypeWithName(w http.ResponseWriter, fileName string) bool {
+
+	contentType := ""
+
+	if strings.HasSuffix(fileName, ".css") {
+		contentType = "text/css"
+	} else if strings.HasSuffix(fileName, ".js") {
+		contentType = "application/javascript"
+	} else if (strings.HasSuffix(fileName, ".ico")) || (strings.HasSuffix(fileName, ".cur")) {
+		contentType = "image/x-icon"
+	} else if strings.HasSuffix(fileName, ".png") {
+		contentType = "image/png"
+	} else if strings.HasSuffix(fileName, ".html") {
+		contentType = "text/html"
+	} else if strings.HasSuffix(fileName, ".svg") {
+		contentType = "image/svg+xml"
+	} else if strings.HasSuffix(fileName, ".json") {
+		contentType = "application/json"
+	}
+
+	if contentType != "" {
+		w.Header().Add("Content-Type", contentType)
+		return true
+	} else {
+		return false
+	}
 }
