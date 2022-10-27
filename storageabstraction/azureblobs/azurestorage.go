@@ -223,9 +223,9 @@ func (azureStorage *tAzureFileStorage) UploadFile(fileName string, fileSize int6
 	_, blobURL := azureStorage.getBlobURL(fileName)
 
 	ctx := context.Background()
-	immutabilityOptions := azblob.NewImmutabilityPolicyOptions(&time.Time{}, azblob.BlobImmutabilityPolicyModeMutable, new(bool))
+	immutabilityOptions := azblob.NewImmutabilityPolicyOptions(&time.Time{}, azblob.BlobImmutabilityPolicyModeNone, new(bool))
 	*immutabilityOptions.LegalHold = false
-	*immutabilityOptions.ImmutabilityPolicyUntilDate = time.Now()
+	*immutabilityOptions.ImmutabilityPolicyUntilDate = time.Now().Add(time.Duration(time.Minute))
 	// Wrap the request body in a RequestBodyProgress and pass a callback function for progress reporting.
 	_, err := blobURL.Upload(ctx, reader,
 		azblob.BlobHTTPHeaders{
