@@ -30,7 +30,7 @@ func (container HTTPFileContainer) ProvideFileHandler() http.Handler {
 			routePath = "/index.html"
 		}
 
-		reader, err := container.FileStorage.DownloadFile(routePath)
+		reader, err := container.FileStorage.Read(routePath)
 
 		if err != nil {
 			HTTPRoutingErrorHandler("Unable to read file", err).EncodeStatus(responseWriter, http.StatusInternalServerError)

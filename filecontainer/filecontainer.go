@@ -20,7 +20,7 @@ func CreateFileManager(storage storageabstraction.IFileStorage, logger log.Logge
 
 // GetFile returns an error or a stream of data which represent the requested file
 func (fileManager FileManager) GetFile(path string) (io.ReadCloser, error) {
-	reader, err := fileManager.storage.DownloadFile(path)
+	reader, err := fileManager.storage.Read(path)
 	if err != nil {
 		fileManager.logger.Log("msg", "Unable to read from storage", "error", err.Error())
 		return nil, err

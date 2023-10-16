@@ -14,14 +14,16 @@ type ExtractFileCallback func(relativDir string, fileSize int64, readContent io.
 type ExtractFolderCallback func(relativDir string)
 
 // Compression The type of the compression
-//				Contains the callbacks
+//
+//	Contains the callbacks
 type Compression struct {
 	FolderCallback ExtractFolderCallback
 	FileCallback   ExtractFileCallback
 }
 
 // ProcessCompression Decompress the stream, for each file and folder the corresponding
-//						Callbacks are called
+//
+//	Callbacks are called
 func (compression *Compression) ProcessCompression(gzipStream io.Reader) error {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	defer uncompressedStream.Close()

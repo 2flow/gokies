@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 
@@ -18,7 +19,8 @@ import (
 )
 
 // tAzureFileStorage
-//						if the storage URL is "" (Empty string) the default url is used
+//
+//	if the storage URL is "" (Empty string) the default url is used
 type tAzureFileStorage struct {
 	accountName string
 	accountKey  string
@@ -92,7 +94,7 @@ func (azureStorage *tAzureFileStorage) DeleteDirectory(directory string) error {
 
 	ctx := context.Background()
 
-	err := azureStorage.Walk(directory, func(path string, info storageabstraction.FileInfo, err error) error {
+	err := azureStorage.Walk(directory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -131,7 +133,8 @@ func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstra
 
 		if err != nil {
 			log.Printf("Unable to list content: %s\r\n", err.Error())
-			err = walk("", storageabstraction.FileInfo{Size: 0, IsDir: false}, err)
+			emptyModel := AzureFileInfo{}
+			err = walk("", &emptyModel, err)
 		} else {
 			// ListBlobs returns the start of the next segment; you MUST use this to get
 			// the next segment (after processing the current result segment).
@@ -139,7 +142,8 @@ func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstra
 
 			// Process the blobs returned in this result segment (if the segment is empty, the loop body won't execute)
 			for _, blobInfo := range listBlob.Segment.BlobItems {
-				err = walk(strings.TrimPrefix(blobInfo.Name, directory), storageabstraction.FileInfo{Size: *blobInfo.Properties.ContentLength, IsDir: false}, nil)
+				fileModel := AzureFileInfo{blobInfo: &blobInfo}
+				err = walk(strings.TrimPrefix(blobInfo.Name, directory), &fileModel, nil)
 
 				if err != nil {
 					break

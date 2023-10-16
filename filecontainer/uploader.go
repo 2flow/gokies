@@ -183,7 +183,7 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 				return
 			}
 
-			if err := uploader.fileStorage.UploadFile(destinationDir+"/"+relativeDir, fileSize, tempFile); err == nil {
+			if err := uploader.fileStorage.Write(destinationDir+"/"+relativeDir, fileSize, tempFile); err == nil {
 				uploadedFiles = append(uploadedFiles, relativeDir)
 			}
 		},
@@ -204,8 +204,8 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 }
 
 func (uploader *Uploader) removeOldFilesInStorage(uploadObject *UploadObject, uploadedFiles []string) {
-	uploader.fileStorage.Walk(uploadObject.destinationDir, func(filePath string, info storageabstraction.FileInfo, err error) error {
-		if !info.IsDir {
+	uploader.fileStorage.Walk(uploadObject.destinationDir, func(filePath string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
 			exists := false
 			for _, fileInArtifact := range uploadedFiles {
 				if fileInArtifact == (filePath) {
