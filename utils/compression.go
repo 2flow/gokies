@@ -24,6 +24,8 @@ type Compression struct {
 // ProcessCompression Decompress the stream, for each file and folder the corresponding
 //
 //	Callbacks are called
+//
+// Deprecated: Use the compression.ExtractFromStream
 func (compression *Compression) ProcessCompression(gzipStream io.Reader) error {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	defer uncompressedStream.Close()

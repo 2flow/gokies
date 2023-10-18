@@ -1,8 +1,8 @@
 package filecontainer
 
 import (
+	compression3 "github.com/2flow/gokies/compression"
 	"github.com/2flow/gokies/storageabstraction"
-	"github.com/2flow/gokies/utils"
 	"github.com/go-kit/log"
 	"io"
 	"io/ioutil"
@@ -81,7 +81,7 @@ func provideEmptyDirectory(dir string) {
 func (uploader *Uploader) createTempDir() string {
 	provideEmptyDirectory(uploader.rootDir)
 
-	dir, err := ioutil.TempDir(uploader.rootDir, "uploaderDir")
+	dir, err := os.MkdirTemp(uploader.rootDir, "uploaderDir")
 	if err != nil {
 		uploader.logger.Log("msg", "Unable to create temp dir")
 	}
@@ -163,7 +163,9 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 
 	uploader.logger.Log("msg", "Start file extraction ...")
 
-	compression := utils.Compression{
+	compression2 := compression3.NewGzipExtractor(uploader.fileStorage)
+
+	/*compression := utils.Compression{
 		FolderCallback: func(relativeDir string) {
 		},
 		FileCallback: func(relativeDir string, fileSize int64, readContent io.Reader) {
@@ -187,7 +189,7 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 				uploadedFiles = append(uploadedFiles, relativeDir)
 			}
 		},
-	}
+	}*/
 
 	artifactReader, err := os.Open(tarPath)
 	if err != nil {
@@ -195,8 +197,13 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 		return uploadedFiles
 	}
 	defer artifactReader.Close()
+	/*
+		if err := compression.ProcessCompression(artifactReader); err != nil {
+			uploader.logger.Log("msg", "unable to process uploaded artifact")
+			return uploadedFiles
+		}*/
 
-	if err := compression.ProcessCompression(artifactReader); err != nil {
+	if err := compression2.ExtractFromStream(destinationDir, artifactReader); err != nil {
 		uploader.logger.Log("msg", "unable to process uploaded artifact")
 		return uploadedFiles
 	}

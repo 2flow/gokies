@@ -1,6 +1,7 @@
 package httputils
 
 import (
+	"github.com/2flow/gokies/filecontainer"
 	"github.com/2flow/gokies/storageabstraction"
 	"io"
 	"net/http"
@@ -42,4 +43,34 @@ func (container HTTPFileContainer) ProvideFileHandler() http.Handler {
 		responseWriter.WriteHeader(http.StatusOK)
 		io.Copy(responseWriter, reader)
 	})
+}
+
+func UploadFileWithMultipart(request *http.Request, fileManager filecontainer.IFileManager, path string) error {
+	multipartFileName := "file"
+	reader, err := request.MultipartReader()
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		part, err := reader.NextPart()
+
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		if part.FormName() == multipartFileName {
+			err = fileManager.UploadTar(path, part)
+			_ = part.Close()
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

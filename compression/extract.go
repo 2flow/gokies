@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/2flow/gokies/storageabstraction"
 	"io"
+	"os"
 )
 
 // ExtractFileCallback called if the current extraction is a file
@@ -29,10 +30,10 @@ func NewGzipExtractor(storage storageabstraction.IFileStorage) *GzipExtractor {
 	}
 }
 
-// ProcessCompression Decompress the stream, for each file and folder the corresponding
+// ExtractFromStream Decompress the stream, for each file and folder the corresponding
 //
 //	Callbacks are called
-func (extractor *GzipExtractor) ProcessCompression(directory string, gzipStream io.Reader) error {
+func (extractor *GzipExtractor) ExtractFromStream(directory string, gzipStream io.Reader) error {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	defer uncompressedStream.Close()
 
@@ -52,10 +53,17 @@ func (extractor *GzipExtractor) ProcessCompression(directory string, gzipStream 
 		switch header.Typeflag {
 		case tar.TypeReg:
 			path := extractor.storage.Join(directory, header.Name)
-			err := extractor.storage.Write(path, header.Size, &readerSeeker{reader: tarReader})
+			tempReader, err := newTempReaderSeeker(header.Size, tarReader)
 			if err != nil {
 				return err
 			}
+			err = extractor.storage.Write(path, header.Size, tempReader)
+			if err != nil {
+				_ = tempReader.Close()
+				return err
+			}
+			_ = tempReader.Close()
+
 		case tar.TypeDir:
 		}
 	}
@@ -63,15 +71,50 @@ func (extractor *GzipExtractor) ProcessCompression(directory string, gzipStream 
 	return nil
 }
 
-type readerSeeker struct {
-	io.ReadSeeker
-	reader io.Reader
+type tempReaderSeeker struct {
+	io.ReadSeekCloser
+	file *os.File
 }
 
-func (reader *readerSeeker) Read(p []byte) (n int, err error) {
-	return reader.reader.Read(p)
+func newTempReaderSeeker(fileSize int64, reader io.Reader) (*tempReaderSeeker, error) {
+	file, err := os.CreateTemp("", "tempUploader")
+	if err != nil {
+		return nil, err
+	}
+
+	if written, err := io.Copy(file, reader); (err != nil) || (written != fileSize) {
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New("unable to copy to temp file")
+	}
+
+	if err := file.Sync(); err != nil {
+		return nil, err
+	}
+	if _, err := file.Seek(0, 0); err != nil {
+		return nil, err
+	}
+
+	return &tempReaderSeeker{
+		file: file,
+	}, nil
 }
 
-func (reader *readerSeeker) Seek(offset int64, whence int) (int64, error) {
-	return 0, errors.New("not implemented")
+func (reader *tempReaderSeeker) Read(p []byte) (n int, err error) {
+	return reader.file.Read(p)
+}
+
+func (reader *tempReaderSeeker) Seek(offset int64, whence int) (int64, error) {
+	return reader.file.Seek(offset, whence)
+}
+
+func (reader *tempReaderSeeker) Close() error {
+	err := reader.file.Close()
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(reader.file.Name())
+	return err
 }
