@@ -229,7 +229,7 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 		}*/
 	uploadedFiles, err = compression2.ExtractFromStream(destinationDir, artifactReader)
 	if err != nil {
-		uploader.logger.Log("msg", "unable to process uploaded artifact")
+		uploader.logger.Log("msg", "unable to process uploaded artifact: "+err.Error())
 	} else {
 		uploader.logger.Log("msg", "Finished file extraction")
 	}
