@@ -36,22 +36,23 @@ func (fileManager FileManager) DoesFileExist(path string) {
 }
 */
 
-func (fileManager FileManager) GetUploadWriter(path string) (io.WriteCloser, error) {
-	return fileManager.uploader.UploadTar(path)
+func (fileManager FileManager) GetUploadWriter(path string, callbacks UploadCallBacks) (TarUploader, error) {
+	return fileManager.uploader.UploadTar(path, callbacks)
 }
 
-func (fileManager FileManager) UploadTar(path string, reader io.Reader) error {
-	uploader, err := fileManager.GetUploadWriter(path)
+func (fileManager FileManager) UploadTar(path string, callbacks UploadCallBacks, reader io.Reader) error {
+	uploader, err := fileManager.GetUploadWriter(path, callbacks)
 	if err != nil {
 		return err
 	}
 
 	_, err = io.Copy(uploader, reader)
 	if err != nil {
+		uploader.Error()
 		return err
 	}
 
-	_ = uploader.Close()
+	uploader.Done()
 
 	return nil
 }

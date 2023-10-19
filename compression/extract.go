@@ -33,13 +33,15 @@ func NewGzipExtractor(storage storageabstraction.IFileStorage) *GzipExtractor {
 // ExtractFromStream Decompress the stream, for each file and folder the corresponding
 //
 //	Callbacks are called
-func (extractor *GzipExtractor) ExtractFromStream(directory string, gzipStream io.Reader) error {
+func (extractor *GzipExtractor) ExtractFromStream(directory string, gzipStream io.Reader) ([]string, error) {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	defer uncompressedStream.Close()
 
+	var extractedFiles []string
+
 	if err != nil {
 		fmt.Println("Unable to get Reader from stream")
-		return err
+		return extractedFiles, err
 	}
 
 	tarReader := tar.NewReader(uncompressedStream)
@@ -47,20 +49,21 @@ func (extractor *GzipExtractor) ExtractFromStream(directory string, gzipStream i
 	for header, err := tarReader.Next(); err != io.EOF; header, err = tarReader.Next() {
 		if err != nil {
 			fmt.Println("Extraction failed during Next()")
-			return err
+			return extractedFiles, err
 		}
-
 		switch header.Typeflag {
 		case tar.TypeReg:
 			path := extractor.storage.Join(directory, header.Name)
+			extractedFiles = append(extractedFiles, header.Name)
+
 			tempReader, err := newTempReaderSeeker(header.Size, tarReader)
 			if err != nil {
-				return err
+				return extractedFiles, err
 			}
 			err = extractor.storage.Write(path, header.Size, tempReader)
 			if err != nil {
 				_ = tempReader.Close()
-				return err
+				return extractedFiles, err
 			}
 			_ = tempReader.Close()
 
@@ -68,7 +71,7 @@ func (extractor *GzipExtractor) ExtractFromStream(directory string, gzipStream i
 		}
 	}
 
-	return nil
+	return extractedFiles, nil
 }
 
 type tempReaderSeeker struct {

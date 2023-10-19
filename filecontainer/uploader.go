@@ -24,6 +24,11 @@ const (
 	LocalTarName = "artifact.tar.gz"
 )
 
+type UploadCallBacks struct {
+	OnExtractionFinished func(err error)
+	OnReadyToExtract     func() error
+}
+
 type UploadLockObject struct {
 	path            string
 	lockType        LockType
@@ -34,6 +39,7 @@ type UploadObject struct {
 	localDir       string
 	destinationDir string
 	uploadType     UploadType
+	callbacks      UploadCallBacks
 }
 
 type Uploader struct {
@@ -44,8 +50,13 @@ type Uploader struct {
 	fileStorage   storageabstraction.IFileStorage
 }
 
+type TarUploader interface {
+	io.Writer
+	Done()
+	Error()
+}
 type tarUploadWriter struct {
-	io.WriteCloser
+	TarUploader
 	uploader     *Uploader
 	UploadObject *UploadObject
 	file         io.WriteCloser
@@ -89,7 +100,7 @@ func (uploader *Uploader) createTempDir() string {
 	return dir
 }
 
-func (uploader *Uploader) UploadTar(rootPath string) (io.WriteCloser, error) {
+func (uploader *Uploader) UploadTar(rootPath string, callbacks UploadCallBacks) (TarUploader, error) {
 	tempDir := uploader.createTempDir()
 	tempPath := path.Join(tempDir, LocalTarName)
 
@@ -97,6 +108,7 @@ func (uploader *Uploader) UploadTar(rootPath string) (io.WriteCloser, error) {
 		tempDir,
 		rootPath,
 		UploadTypeTar,
+		callbacks,
 	}
 
 	file, err := os.Create(tempPath)
@@ -110,7 +122,11 @@ func (uploader *Uploader) UploadTar(rootPath string) (io.WriteCloser, error) {
 
 func (uploader *Uploader) objectUploadFunction(uploadObject *UploadObject, lockObj *UploadLockObject) {
 
-	uploader.storeTarContent(uploadObject)
+	err := uploadObject.callbacks.OnReadyToExtract()
+	if err == nil {
+		uploader.extractTar(uploadObject)
+		uploadObject.callbacks.OnExtractionFinished(nil)
+	}
 
 	uploader.todosLock.Lock()
 	{
@@ -153,12 +169,21 @@ func (tarUploadWriter tarUploadWriter) Write(p []byte) (n int, err error) {
 	return tarUploadWriter.file.Write(p)
 }
 
-func (tarUploadWriter tarUploadWriter) Close() error {
+/*func (tarUploadWriter tarUploadWriter) Close() error {
 	tarUploadWriter.uploader.registerForUpload(tarUploadWriter.UploadObject)
 	return tarUploadWriter.file.Close()
+}*/
+
+func (tarUploadWriter tarUploadWriter) Done() {
+	tarUploadWriter.uploader.registerForUpload(tarUploadWriter.UploadObject)
+	_ = tarUploadWriter.file.Close()
 }
 
-func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir string, tempFile string) []string {
+func (tarUploadWriter tarUploadWriter) Error() {
+	_ = tarUploadWriter.file.Close()
+}
+
+func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir string, tempFile string) ([]string, error) {
 	var uploadedFiles []string
 
 	uploader.logger.Log("msg", "Start file extraction ...")
@@ -194,7 +219,7 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 	artifactReader, err := os.Open(tarPath)
 	if err != nil {
 		uploader.logger.Log("msg", "unable to open uploaded artifacts file "+tarPath)
-		return uploadedFiles
+		return uploadedFiles, err
 	}
 	defer artifactReader.Close()
 	/*
@@ -202,17 +227,19 @@ func (uploader *Uploader) uploadContentFromTar(tarPath string, destinationDir st
 			uploader.logger.Log("msg", "unable to process uploaded artifact")
 			return uploadedFiles
 		}*/
-
-	if err := compression2.ExtractFromStream(destinationDir, artifactReader); err != nil {
+	uploadedFiles, err = compression2.ExtractFromStream(destinationDir, artifactReader)
+	if err != nil {
 		uploader.logger.Log("msg", "unable to process uploaded artifact")
-		return uploadedFiles
+	} else {
+		uploader.logger.Log("msg", "Finished file extraction")
 	}
-	return uploadedFiles
+
+	return uploadedFiles, err
 }
 
-func (uploader *Uploader) removeOldFilesInStorage(uploadObject *UploadObject, uploadedFiles []string) {
-	uploader.fileStorage.Walk(uploadObject.destinationDir, func(filePath string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
+func (uploader *Uploader) removeOldFilesInStorage(uploadObject *UploadObject, uploadedFiles []string) error {
+	return uploader.fileStorage.Walk(uploadObject.destinationDir, func(filePath string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() {
 			exists := false
 			for _, fileInArtifact := range uploadedFiles {
 				if fileInArtifact == (filePath) {
@@ -228,12 +255,14 @@ func (uploader *Uploader) removeOldFilesInStorage(uploadObject *UploadObject, up
 	})
 }
 
-func (uploader *Uploader) storeTarContent(uploadObject *UploadObject) {
+func (uploader *Uploader) extractTar(uploadObject *UploadObject) error {
 	artifactFileName := path.Join(uploadObject.localDir, LocalTarName)
 	tempFile := path.Join(uploadObject.localDir, "temp.file")
 
-	uploadedFiles := uploader.uploadContentFromTar(artifactFileName, uploadObject.destinationDir, tempFile)
+	uploadedFiles, err := uploader.uploadContentFromTar(artifactFileName, uploadObject.destinationDir, tempFile)
+	if err != nil {
+		return err
+	}
 
-	uploader.removeOldFilesInStorage(uploadObject, uploadedFiles)
-
+	return uploader.removeOldFilesInStorage(uploadObject, uploadedFiles)
 }

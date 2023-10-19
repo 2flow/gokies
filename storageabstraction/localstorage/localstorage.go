@@ -17,6 +17,7 @@ type localStorage struct {
 
 // NewLocalStorage creates a new instance of an local storage
 func NewLocalStorage(rootDir string) storageabstraction.IFileStorage {
+	os.MkdirAll(rootDir, 0777)
 	return &localStorage{rootDirectory: rootDir}
 }
 
@@ -64,7 +65,7 @@ func (storage *localStorage) Read(fileName string) (io.ReadCloser, error) {
 func (storage *localStorage) Join(paths ...string) string {
 	joinedPath := ""
 	for _, path := range paths {
-
+		path = strings.ReplaceAll(path, "./", "")
 		if joinedPath == "" {
 			joinedPath = path
 			continue
@@ -73,6 +74,9 @@ func (storage *localStorage) Join(paths ...string) string {
 			joinedPath += "/"
 		}
 
+		if len(path) == 0 {
+			continue
+		}
 		if path[0] == '/' || path[0] == '\\' {
 			joinedPath += path[1:]
 		} else {
@@ -103,6 +107,7 @@ func (storage *localStorage) DeleteFile(fileName string) error {
 func (storage *localStorage) Walk(directory string, walk storageabstraction.WalkFunc) error {
 
 	rootPath := storage.Join(storage.rootDirectory, directory)
+	rootPath = filepath.ToSlash(rootPath)
 	trimLen := len(rootPath)
 	if directory[len(directory)-1] != '/' && directory[len(directory)-1] != '\\' {
 		trimLen++
@@ -113,6 +118,7 @@ func (storage *localStorage) Walk(directory string, walk storageabstraction.Walk
 			_ = walk("", info, err)
 			return err
 		}
+		path = filepath.ToSlash(path)
 
 		if len(path) <= trimLen {
 			path = ""
