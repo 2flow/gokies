@@ -25,6 +25,7 @@ func NewLocalStorage(rootDir string) storageabstraction.IFileStorage {
 func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeker) error {
 	filePath := path.Join(storage.rootDirectory, fileName)
 	filePath = filepath.ToSlash(filePath)
+	fmt.Printf("[LocalStorageWrite] %s Writing file %s\n", storage.rootDirectory, filePath)
 
 	pathEndIdx := strings.LastIndex(filePath, "/")
 	err := os.MkdirAll(filePath[:pathEndIdx], 0777)
