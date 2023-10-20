@@ -124,8 +124,8 @@ func (uploader *Uploader) objectUploadFunction(uploadObject *UploadObject, lockO
 
 	err := uploadObject.callbacks.OnReadyToExtract()
 	if err == nil {
-		uploader.extractTar(uploadObject)
-		uploadObject.callbacks.OnExtractionFinished(nil)
+		err = uploader.extractTar(uploadObject)
+		uploadObject.callbacks.OnExtractionFinished(err)
 	}
 
 	uploader.todosLock.Lock()

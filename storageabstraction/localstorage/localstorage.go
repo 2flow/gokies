@@ -1,6 +1,7 @@
 package localstorage
 
 import (
+	"fmt"
 	"github.com/2flow/gokies/storageabstraction"
 	"io"
 	"io/fs"
@@ -31,9 +32,14 @@ func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeke
 		return err
 	}
 
-	file, err := os.OpenFile(filePath, os.O_CREATE, 0644)
+	err = os.Remove(filePath)
+	if err != nil {
+		fmt.Errorf("[LocalStorageWrite]"+"Unable to remove file %s: %s", filePath, err.Error())
+	}
+	file, err := os.OpenFile(filePath, os.O_CREATE, 0777)
 
 	if err != nil {
+		fmt.Errorf("[LocalStorageWrite]"+"Unable to Open file %s: %s", filePath, err.Error())
 		return err
 	}
 	defer file.Close()
@@ -50,6 +56,7 @@ func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeke
 
 		writeCount, err := file.Write(buffer[:bytesCount])
 		if err != nil || writeCount != bytesCount {
+			fmt.Errorf("[LocalStorageWrite]"+"Unable to write file %s: %s", filePath, err.Error())
 			return err
 		}
 
