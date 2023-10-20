@@ -28,8 +28,11 @@ func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeke
 	fmt.Printf("[LocalStorageWrite] %s Writing file %s\n", storage.rootDirectory, filePath)
 
 	pathEndIdx := strings.LastIndex(filePath, "/")
-	err := os.MkdirAll(filePath[:pathEndIdx], 0777)
+	dirpath := filePath[:pathEndIdx]
+	err := os.MkdirAll(dirpath, 0666)
 	if err != nil {
+		fmt.Errorf("[LocalStorageWrite]"+"Unable create directory %s, FILE: %s, ERROR: %s", dirpath, filePath,
+			err.Error())
 		return err
 	}
 
@@ -37,7 +40,7 @@ func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeke
 	if err != nil {
 		fmt.Errorf("[LocalStorageWrite]"+"Unable to remove file %s: %s", filePath, err.Error())
 	}
-	file, err := os.OpenFile(filePath, os.O_CREATE, 0777)
+	file, err := os.OpenFile(filePath, os.O_CREATE, 0666)
 
 	if err != nil {
 		fmt.Errorf("[LocalStorageWrite]"+"Unable to Open file %s: %s", filePath, err.Error())
