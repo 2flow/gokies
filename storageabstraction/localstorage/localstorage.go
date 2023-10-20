@@ -6,8 +6,10 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -18,28 +20,61 @@ type localStorage struct {
 
 // NewLocalStorage creates a new instance of an local storage
 func NewLocalStorage(rootDir string) storageabstraction.IFileStorage {
-	os.MkdirAll(rootDir, 0777)
+	os.MkdirAll(rootDir, 0777|os.ModeDir)
 	return &localStorage{rootDirectory: rootDir}
+}
+
+// create path if not exists, and set the owner of it
+func createFolder(path string, uid, gid int) {
+	path = filepath.ToSlash(path)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		subPath, filepath := filepath.Split(path)
+		if filepath == "" || subPath == "" {
+			return
+		}
+
+		createFolder(subPath, uid, gid)
+
+		err := os.MkdirAll(path, 0777|os.ModeDir)
+		if err != nil {
+			_ = fmt.Errorf("[createFolder] Error during mkdir %s", err.Error())
+		}
+		err = os.Chown(path, uid, gid)
+		if err != nil {
+			fmt.Errorf("[createFolder] Error during chown %s", err.Error())
+		}
+	}
 }
 
 func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeker) error {
 	filePath := path.Join(storage.rootDirectory, fileName)
 	filePath = filepath.ToSlash(filePath)
 
-	pathEndIdx := strings.LastIndex(filePath, "/")
-	dirpath := filePath[:pathEndIdx]
-	err := os.MkdirAll(dirpath, 0777)
+	dirpath, _ := filepath.Split(filePath)
+	if len(dirpath) < len(storage.rootDirectory) {
+		return nil
+	}
+
+	group, err := user.Lookup("www-data")
 	if err != nil {
+		fmt.Errorf("[LocalStorageWrite]" + "Unable to find group www-data")
+		return err
+	}
+	uid, _ := strconv.Atoi(group.Uid)
+	gid, _ := strconv.Atoi(group.Gid)
+	createFolder(dirpath, uid, gid)
+
+	/*if err != nil {
 		fmt.Errorf("[LocalStorageWrite]"+"Unable create directory %s, FILE: %s, ERROR: %s", dirpath, filePath,
 			err.Error())
 		return err
-	}
+	}*/
 
 	err = os.Remove(filePath)
 	if err != nil {
 		fmt.Errorf("[LocalStorageWrite]"+"Unable to remove file %s: %s", filePath, err.Error())
 	}
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0777)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0777|os.ModeDir)
 
 	if err != nil {
 		fmt.Errorf("[LocalStorageWrite]"+"Unable to Open file %s: %s", filePath, err.Error())
