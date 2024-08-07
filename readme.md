@@ -7,6 +7,29 @@ A small private collection of functionality for projects using http, rest and az
 This is a collection of storage targets. All of them implement the IFileStorage interface.
 It allows to set a root directory to which all the paths are relative to.
 
+### Interface
+
+```go
+type IFileStorage interface {
+// CreateDirectory(dirName string) error
+
+Write(fileName string, fileSize int64, reader io.ReadSeeker) error
+Read(fileName string) (io.ReadCloser, error)
+FileSize(fileName string) (int64, error)
+DeleteDirectory(directory string) error
+DeleteFile(fileName string) error
+Walk(directory string, walk WalkFunc) error
+Join(paths ...string) string
+}
+```
+
+### Example
+```go
+localStorage := localstorage.NewLocalStorage("./dir")
+azureStorage := azurestorage.NewAzureStorage("accountName", "accountKey", "containerName")
+
+```
+
 ## Compression
 
 Compress and Extract files and folders using gzip and tar.

@@ -3,6 +3,7 @@ package localstorage
 import (
 	"fmt"
 	"github.com/2flow/gokies/storageabstraction"
+	"github.com/2flow/gokies/storageabstraction/common"
 	"io"
 	"io/fs"
 	"os"
@@ -18,7 +19,11 @@ type localStorage struct {
 
 // NewLocalStorage creates a new instance of an local storage
 func NewLocalStorage(rootDir string) storageabstraction.IFileStorage {
-	os.MkdirAll(rootDir, 0777)
+	err := os.MkdirAll(rootDir, 0777)
+	if err != nil {
+		return nil
+	}
+
 	return &localStorage{rootDirectory: rootDir}
 }
 
@@ -27,22 +32,22 @@ func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeke
 	filePath = filepath.ToSlash(filePath)
 
 	pathEndIdx := strings.LastIndex(filePath, "/")
-	dirpath := filePath[:pathEndIdx]
-	err := os.MkdirAll(dirpath, 0777)
+	dirPath := filePath[:pathEndIdx]
+	err := os.MkdirAll(dirPath, 0777)
 	if err != nil {
-		fmt.Errorf("[LocalStorageWrite]"+"Unable create directory %s, FILE: %s, ERROR: %s", dirpath, filePath,
+		_ = fmt.Errorf("[LocalStorageWrite]"+"Unable create directory %s, FILE: %s, ERROR: %s", dirPath, filePath,
 			err.Error())
 		return err
 	}
 
 	err = os.Remove(filePath)
 	if err != nil {
-		fmt.Errorf("[LocalStorageWrite]"+"Unable to remove file %s: %s", filePath, err.Error())
+		_ = fmt.Errorf("[LocalStorageWrite]"+"Unable to remove file %s: %s", filePath, err.Error())
 	}
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0777)
 
 	if err != nil {
-		fmt.Errorf("[LocalStorageWrite]"+"Unable to Open file %s: %s", filePath, err.Error())
+		_ = fmt.Errorf("[LocalStorageWrite]"+"Unable to Open file %s: %s", filePath, err.Error())
 		return err
 	}
 	defer file.Close()
@@ -59,7 +64,12 @@ func (storage *localStorage) Write(fileName string, _ int64, reader io.ReadSeeke
 
 		writeCount, err := file.Write(buffer[:bytesCount])
 		if err != nil || writeCount != bytesCount {
-			fmt.Errorf("[LocalStorageWrite]"+"Unable to write file %s: %s", filePath, err.Error())
+			errStr := "actual write Count is not equal to bytesCount"
+			if err != nil {
+				errStr = err.Error()
+			}
+
+			_ = fmt.Errorf("[LocalStorageWrite]"+"Unable to write file %s: %s", filePath, errStr)
 			return err
 		}
 
@@ -73,28 +83,7 @@ func (storage *localStorage) Read(fileName string) (io.ReadCloser, error) {
 }
 
 func (storage *localStorage) Join(paths ...string) string {
-	joinedPath := ""
-	for _, path := range paths {
-		path = strings.ReplaceAll(path, "./", "")
-		if joinedPath == "" {
-			joinedPath = path
-			continue
-		}
-		if joinedPath[len(joinedPath)-1] != '/' && joinedPath[len(joinedPath)-1] != '\\' {
-			joinedPath += "/"
-		}
-
-		if len(path) == 0 {
-			continue
-		}
-		if path[0] == '/' || path[0] == '\\' {
-			joinedPath += path[1:]
-		} else {
-			joinedPath += path
-		}
-	}
-
-	return joinedPath
+	return common.LinuxPathJoin(paths...)
 }
 
 func (storage *localStorage) FileSize(fileName string) (int64, error) {

@@ -1,6 +1,7 @@
 package localstorage
 
 import (
+	"github.com/2flow/gokies/storageabstraction"
 	"os"
 	"strings"
 	"testing"
@@ -22,6 +23,30 @@ func TestLocalStorage(t *testing.T) {
 
 	testlocalstorageWrite(t)
 	testLocalStorageRead(t)
+}
+
+func TestPathJoin(t *testing.T) {
+	storage := NewLocalStorage(testTempDir)
+
+	testPathJoin(t, storage, "test/test2", "test", "test2")
+	testPathJoin(t, storage, "test/test2/test3", "test", "test2", "test3")
+	testPathJoin(t, storage, "test/test2/test3", "test", "test2/test3")
+
+	testPathJoin(t, storage, "test/test2/testA/test3", "test", "test2/testA/", "/test3")
+
+	testPathJoin(t, storage, "test/test2/testA/test3", "test", "test2./testA/", "/test3")
+	testPathJoin(t, storage, "test/test2/testA/test3", "test", "test2./testA/", "/test3")
+	testPathJoin(t, storage, "test/test2/testA/test3", "./test", "test2./testA/", "/test3")
+
+	testPathJoin(t, storage, "/test/test2", "/test", "test2")
+
+}
+
+func testPathJoin(t *testing.T, storage storageabstraction.IFileStorage, expected string, args ...string) {
+	actual := storage.Join(args...)
+	if actual != expected {
+		t.Error("Join failed", "source: ["+strings.Join(args, ", ")+"]", "Expected:", expected, "Actual:", actual)
+	}
 }
 
 func testLocalStorageRead(t *testing.T) {

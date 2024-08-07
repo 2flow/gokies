@@ -31,6 +31,7 @@ type IFileStorage interface {
 	DeleteDirectory(directory string) error
 	DeleteFile(fileName string) error
 	Walk(directory string, walk WalkFunc) error
+	// Join the paths together and clean up path
 	Join(paths ...string) string
 }
 

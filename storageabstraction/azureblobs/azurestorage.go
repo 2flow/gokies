@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/2flow/gokies/storageabstraction"
+	"github.com/2flow/gokies/storageabstraction/common"
 	"io"
 	"log"
 	"net/url"
@@ -48,12 +49,14 @@ func (azureReader *tAzureReadCloser) Close() error {
 }
 
 // NewAzureStorage instantiates a new azur storage connector
-func NewAzureStorage(accountName string, accountKey string, containerName string, storageURL string) storageabstraction.IFileStorage {
+func NewAzureStorage(accountName string, accountKey string, containerName string) storageabstraction.IFileStorage {
 
-	if storageURL == "" {
-		storageURL = fmt.Sprintf("https://%s.blob.core.windows.net", accountName)
-	}
+	storageURL := fmt.Sprintf("https://%s.blob.core.windows.net", accountName)
 
+	return NewAzureStorageFromUrl(storageURL, containerName, accountName, accountKey)
+}
+
+func NewAzureStorageFromUrl(storageURL, containerName, accountName, accountKey string) storageabstraction.IFileStorage {
 	storage := &tAzureFileStorage{accountName: accountName,
 		accountKey:    accountKey,
 		storageURL:    storageURL,
@@ -160,7 +163,7 @@ func (azureStorage *tAzureFileStorage) Walk(directory string, walk storageabstra
 	return err
 }
 
-func (azureStorage *tAzureFileStorage) DownloadFile(fileName string) (io.ReadCloser, error) {
+func (azureStorage *tAzureFileStorage) Read(fileName string) (io.ReadCloser, error) {
 	azureStorage.LogIn()
 	// do not logout at the end of this function, the logout is done when the reader is closed
 
@@ -210,7 +213,7 @@ func (azureStorage *tAzureFileStorage) FileSize(fileName string) (int64, error) 
 	return property.ContentLength(), nil
 }
 
-func (azureStorage *tAzureFileStorage) UploadFile(fileName string, fileSize int64, reader io.ReadSeeker) error {
+func (azureStorage *tAzureFileStorage) Write(fileName string, fileSize int64, reader io.ReadSeeker) error {
 	azureStorage.LogIn()
 	defer azureStorage.LogOut()
 
@@ -238,6 +241,10 @@ func (azureStorage *tAzureFileStorage) UploadFile(fileName string, fileSize int6
 		log.Fatal(err)
 	}
 	return nil
+}
+
+func (azureStorage *tAzureFileStorage) Join(paths ...string) string {
+	return common.LinuxPathJoin(paths...)
 }
 
 func (azureStorage *tAzureFileStorage) LogOut() error {
