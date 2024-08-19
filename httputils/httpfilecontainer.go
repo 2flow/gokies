@@ -1,7 +1,6 @@
 package httputils
 
 import (
-	"github.com/2flow/gokies/filecontainer"
 	"github.com/2flow/gokies/storageabstraction"
 	"io"
 	"net/http"
@@ -9,43 +8,48 @@ import (
 )
 
 type HTTPFileContainer struct {
-	FileStorage storageabstraction.IFileStorage
-	RootDir     string
+	fileStorage storageabstraction.IFileStorage
+	rootDir     string
 }
 
-func (container HTTPFileContainer) ProvideFileHandler() http.Handler {
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		fetchDest := request.Header.Get("Sec-Fetch-Dest") // if index.html --> document otherwise script
-		routePath := request.URL.Path
-
-		// if the document is requested return the index.html
-		// this should work
-		if fetchDest == "document" {
-			routePath = "/index.html"
-		} else if fetchDest == "" {
-			parts := strings.Split(routePath, ".")
-			if len(parts) == 1 {
-				routePath = "/index.html"
-			}
-		} else if routePath == "/" {
-			routePath = "/index.html"
-		}
-
-		reader, err := container.FileStorage.Read(routePath)
-
-		if err != nil {
-			HTTPRoutingErrorHandler("Unable to read file", err).EncodeStatus(responseWriter, http.StatusInternalServerError)
-			return
-		}
-
-		defer reader.Close()
-		SetContentType(responseWriter, reader, routePath)
-		responseWriter.WriteHeader(http.StatusOK)
-		io.Copy(responseWriter, reader)
-	})
+func NewHTTPFileContainer(fileStorage storageabstraction.IFileStorage, rootDir string) *HTTPFileContainer {
+	return &HTTPFileContainer{
+		fileStorage: fileStorage,
+		rootDir:     rootDir,
+	}
 }
 
-func UploadFileWithMultipart(request *http.Request, fileManager filecontainer.IFileManager, path string) error {
+func (container *HTTPFileContainer) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
+	fetchDest := request.Header.Get("Sec-Fetch-Dest") // if index.html --> document otherwise script
+	routePath := request.URL.Path
+
+	// if the document is requested return the index.html
+	// this should work
+	if fetchDest == "document" {
+		routePath = "/index.html"
+	} else if fetchDest == "" {
+		parts := strings.Split(routePath, ".")
+		if len(parts) == 1 {
+			routePath = "/index.html"
+		}
+	} else if routePath == "/" {
+		routePath = "/index.html"
+	}
+
+	reader, err := container.fileStorage.Read(routePath)
+
+	if err != nil {
+		HTTPRoutingErrorHandler("Unable to read file", err).EncodeStatus(responseWriter, http.StatusInternalServerError)
+		return
+	}
+
+	defer reader.Close()
+	SetContentType(responseWriter, reader, routePath)
+	responseWriter.WriteHeader(http.StatusOK)
+	io.Copy(responseWriter, reader)
+}
+
+/*func UploadFileWithMultipart(request *http.Request, fileManager filecontainer.IFileManager, path string) error {
 	multipartFileName := "file"
 	reader, err := request.MultipartReader()
 
@@ -74,3 +78,4 @@ func UploadFileWithMultipart(request *http.Request, fileManager filecontainer.IF
 
 	return nil
 }
+*/
